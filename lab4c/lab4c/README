@@ -1,0 +1,18 @@
+NAME: Kai Wong
+EMAIL: kaileymon@g.ucla.edu
+ID: 704451679
+
+INCLUDED FILES:
+	 lab4c_tcp.c: C source file that builds into program that interacts with logging server via TCP/IP connection as per specification
+	 lab4c_tls.c: C source file that builds into program that interacts with logging server via TLS/SSL connection as per specification
+	 Makefile:
+		default...build both versions of the program
+		clean...delete all programs and output created by Makefile
+		dist...creates the deliverable tarball
+	 README: This document
+
+REFERENCES:
+	sprintf manual: https://www.tutorialspoint.com/c_standard_library/c_function_sprintf.htm
+	SSL/TLS connection usage examples: http://fm4dd.com/openssl/sslconnect.htm
+			   	 	   http://www.cs.odu.edu/~cs772/fall08/lectures/ssl_programming.pdf
+					   https://wiki.openssl.org/index.php/SSL/TLS_Client
