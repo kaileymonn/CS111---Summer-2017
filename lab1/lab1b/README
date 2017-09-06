@@ -1,0 +1,31 @@
+NAME: Kai Wong
+EMAIL: kaileymon@g.ucla.edu
+ID: 704451679
+
+TARBALL CONTENTS: 
+
+lab1b-client.c: C source file that compiles into executable client program as per specifications.
+
+lab1b-server.c: C source file that compiles into executable server program as per specifications.
+
+Makefile: 	
+		client - compiles lab1b-client.c into executable. Uses -pthread and -libmcrypt gcc options 
+		server - compiles lab1b-server.c into executable. Uses -pthread and -libmcrypt gcc options
+		default - Creates both executables, lab1b-client and lab1b-server
+		clean - removes unnecessary files 
+		dist - generates tarball for submission
+
+my.key: Contains 16-char key used in encryption module, TWOFISH algorithm, "cfb" mode
+
+README: The file currently being read
+
+
+REFERENCES:
+	Sockets tutorial: http://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/socket.html
+	AES encryption example: https://gist.github.com/bricef/2436364		
+	TWOFISH encryption example: https://linux.die.net/man/3/mcrypt
+	Copy stdin to socket and log file: http://blog.superpat.com/2010/07/08/a-cup-of-tee-and-a-splice-of-cake/
+	wait(1) and waitpid(3) notes: http://pubs.opengroup.org/onlinepubs/9699919799/functions/wait.html
+	Catch ^C signal: http://www.thegeekstuff.com/2012/03/catch-signals-sample-c-code/ 
+
+			

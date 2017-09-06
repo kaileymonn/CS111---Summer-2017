@@ -1,0 +1,18 @@
+NAME: Kai Wong
+EMAIL: kaileymon@g.ucla.edu
+ID: 704451679
+
+FILES INCLUDED: 
+      lab3a.c: C source file as per specification
+      	      
+      ext2_fs.h: header file that defines the format of EXT2 file system      
+	       
+      Makefile: 
+      		make - builds executable
+		make dist - makes distribution tarball
+		make clean - removes non-essential files 
+
+      README: This document
+
+REFERENCES:
+	extra readings on file system programming: http://www2.cs.uregina.ca/~hamilton/courses/330/notes/allocate/allocate.html

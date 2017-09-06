@@ -1,0 +1,27 @@
+NAME: Kai Wong
+EMAIL: kaileymon@g.ucla.edu
+ID: 704451679
+
+CONTENTS:
+lab1a.c: 
+	 C source file as per specification. Pthread method was used instead of poll(2) due to comfort level with pthread apis.
+
+Makefile: 
+	  Contains the usual targets. 'default:' Builds the executable 
+	  	       	     	      'clean:' Clears the directory of non-essential files. 
+				      'dist:' Builds the tarball as per specification
+
+README: 
+	Brief description of tarball contensts, references included.
+
+
+REFERNCES:
+	How to atexit(): https://www.tutorialspoint.com/c_standard_library/c_function_atexit.htm
+	How to set terminal modes: https://www.gnu.org/software/libc/manual/html_node/Setting-Modes.html#Setting-Modes
+	How to termios(3) and stty: https://blog.nelhage.com/2009/12/a-brief-introduction-to-termios-termios3-and-stty/
+	What is termios VMIN and VTIME: http://unixwiz.net/techtips/termios-vmin-vtime.html
+	More on read(3): http://pubs.opengroup.org/onlinepubs/009695399/functions/read.html
+	How to signal(2): https://www.tutorialspoint.com/c_standard_library/c_function_signal.htm
+	How to Process Completion Statuses: https://www.gnu.org/software/libc/manual/html_node/Process-Completion-Status.html
+	
+

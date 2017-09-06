@@ -1,0 +1,66 @@
+NAME: Kai Wong
+EMAIL: kaileymon@g.ucla.edu
+ID: 704451679
+
+CONTENTS:
+	lab2_list.c: Source code for executable that performs parallel updates on a doubly-linked list
+	lab2_list1.csv
+	lab2_list2.csv
+
+	tests.sh: Script that runs tests on lab2_list executable, records results in respective .csv files
+	
+	Makefile:
+		default: Compiles both executables
+		clean: Removes unnecessary files
+		tests: executes tests.sh
+		graphs:	Creates graphs from respective .csv files using gnuplot
+		profile: Creates profiling report using google performance tools 
+		tar: Creates distribution tarball for submission
+
+	README: This document
+
+	Graphs generated from Make graphs:
+	       			lab2b_1.png
+	       			lab2b_2.png
+	       			lab2b_3.png
+	       			lab2b_4.png
+				lab2b_5.png				
+
+ANSWERS:
+	QUESTION 2.3.1 - Cycles in the basic list implementation:
+		 Where do you believe most of the cycles are spent in the 1 and 2-thread list tests?
+		       Most of the cycles would be spent on performing list operations like lookup() or insert()
+		 Why do you believe these to be the most expensive parts of the code?
+    		       Number of iterations used is large; 1000
+		 Where do you believe most of the time/cycles are being spent in the high-thread spin-lock tests?
+		       Most of the cycles would be spent spinning
+		 Where do you believe most of the time/cycles are being spent in the high-thread mutex tests?
+		       Most of the cycles would still be spent on list operations like lookup() or insert() since threads waiting on locks would not be consuming cpu cycles
+
+	QUESTION 2.3.2 - Execution Profiling:
+		 Where (what lines of code) are consuming most of the cycles when the spin-lock version of the list exerciser is run with a large number of threads?
+		       The line is while(__sync_lock_test_and_set(&spin_locks[offset[i]], 1) == 1);		       
+		 Why does this operation become so expensive with large numbers of threads?
+		       With more threads, there is more contention so more threads spend a larger percentage of their time spinning
+
+	QUESTION 2.3.3 - Mutex Wait Time:
+		 Look at the average time per operation (vs # threads) and the average wait-for-mutex time (vs #threads).
+		 Why does the average lock-wait time rise so dramatically with the number of contending threads?
+		       With more contending threads, each thread would have to wait longer per lock since more threads would be waiting on the same lock. With more threads, the overhead of context switches among contending threads as they check for lock availability also contributes to the wait time significantly.
+		 Why does the completion time per operation rise (less dramatically) with the number of contending threads?
+		       With more contending threads, there is greater overhead from threads due to the increased context switching that takes place as waiting threads check for lock availability. It is less dramatic since threads yield when they are unable to obtain the lock, allowing another thread to run or check for lock availability.
+		 How is it possible for the wait time per operation to go up faster (or higher) than the completion time per operation?
+		       When a thread is waiting for a lock, it yields so another thread can either run or check for lock availability. While more thread contention increases the lock wait time significantly, threads not waiting for the lock are still running and executing their operations which is a good thing for completion time. 
+	QUESTION 2.3.4 - Performance of Partitioned Lists:
+		 Explain the change in performance of the synchronized methods as a function of the number of lists.
+		       As the number of lists increase, the performance of the synchronized methods generally increase but not strictly so. 
+		 Should the throughput continue increasing as the number of lists is further increased? If not, explain why not.
+		 	No. More lists would result in more overhead from context switching between threads since there would be more locked sublists in contention and the increased contention would also mean more threads spending more of their time waiting for other threads to release sublists instead of performing their operations. Because of the finer granularity of sublist creation, thread wait time for individual sublists to become free would start to become more significant than the time actually taken to perform the operations within these smaller sublists, negatively affecting throughput.
+		 It seems reasonable to suggest the throughput of an N-way partitioned list should be equivalent to the throughput of a single list with fewer (1/N) threads. Does this appear to be true in the above curves? If not, explain why not.
+		 No. This is because of overheads incurred from threads waiting on locks that hold critical sections of the list they are trying to run operations on as well as from the increased context switching that takes place between contending threads, both of which negatively affect throughput to the point where it negates performance gains from greater parallelization. Therefore, single lists with fewer threads in this case would have much better throughputs. 
+
+
+
+
+REFERENCES:
+	How to use gperftools: http://alexott.net/en/writings/prog-checking/GooglePT.html

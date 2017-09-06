@@ -1,0 +1,6 @@
+Total: 6 samples
+       3  50.0%  50.0%        6 100.0% thread_function
+       2  33.3%  83.3%        2  33.3% getrpcbynumber_r
+       1  16.7% 100.0%        1  16.7% SortedList_lookup
+       0   0.0% 100.0%        6 100.0% clone
+       0   0.0% 100.0%        6 100.0% start_thread

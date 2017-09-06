@@ -1,0 +1,19 @@
+NAME: Kai Wong
+EMAIL: kaileymon@g.ucla.edu
+ID: 704451679
+
+DELIVERABLES:
+	lab3b.py: Python source file that analyses file system summary files as per specification
+	lab3b: Shell script executable to run lab3b.py with input arguments(fs summary files)
+	Makefile:
+		default...enables executable permission for lab3b shell script
+		clean...deletes tarball 
+		dist...creates deliverable tarball
+	README: This file
+
+REFERENCES:
+	Common python library functions: https://docs.python.org/2/library/functions.html#str
+	Python list [] and map {} review: https://stackoverflow.com/questions/4407873/whats-the-difference-between-vs-vs
+	Python split() for parsing data lines: http://www.pythonforbeginners.com/dictionary/python-split
+
+

@@ -1,0 +1,117 @@
+NAME: Kai Wong
+EMAIL: kaileymon@g.ucla.edu
+ID: 704451679
+
+CONTENTS:
+	lab2_add.c: Source code for executable that performs parallel updates on a shared variable
+	lab2_add.csv
+
+	lab2_list.c: Source code for executable that performs parallel updates on a doubly-linked list
+	lab2_list.csv
+
+	tests.sh: Script that runs may tests on lab2_add and lab2_list executables, records results in respective .csv files
+	
+	Makefile:
+		default: Compiles both executables
+		clean: Removes unnecessary files
+		tests: executes tests.sh
+		graphs:	Creates graphs from respective .csv files using gnuplot
+		tar: Creates distribution tarball for submission
+
+	README: This document
+
+	Graphs generated from Make graphs:
+					lab2_add-1.png
+					lab2_add-2.png
+	       			lab2_add-3.png
+	       			lab2_add-4.png
+	       			lab2_add-5.png
+
+	       			lab2_list-1.png
+	       			lab2_list-2.png
+	       			lab2_list-3.png
+	       			lab2_list-4.png
+
+ANSWERS:
+	QUESTION 2.1.1 - causing conflicts:
+		Why does it take many iterations before errors are seen?
+			With more iterations, the chance of finding errors increase as these errors depend on interrupts
+			in critical sections conflicting with each other. More iterations means more instructions 
+			being carried out, hence an increase in the probability of more conflicts occuring.
+		
+		Why does a significantly smaller number of iterations so seldom fail?
+			As explained earlier, with fewer iterations, fewer instructions are carried out and hence the
+			chances of a synchronization error occuring is dramatically reduced.
+			
+	QUESTION 2.1.2 - cost of yielding:
+		Why are the --yield runs so much slower?
+			When we yield the execution of a thread, a context switch is executed which has significant 
+			overhead. 
+		
+		Where is the additional time going?
+			In a context switch, there is a need to save current register states of the current thread 
+			into memory before loading the new register states of the new thread. This takes time. 			
+		
+		Is it possible to get valid per-operation timings if we are using the --yield option?
+			No it will not be valid.
+		
+		If so, explain how. If not, explain why not.
+			Since the context switches have significant overhead, the large number of context switches
+			being performed skews the total run time of the executable, which when used to calculate 
+			per-operation timings will result in an inaccurate value since per-operation times should
+			not include the overhead of context switching.
+			
+	QUESTION 2.1.3 - measurement errors:
+		Why does the average cost per operation drop with increasing iterations?
+			Overhead from thread creation is generally fixed, hence if we increase the number of iterations,
+			each thread will perform a larger number of instructions and hence dilute the significance of 
+			the context switch/thread creation overheads.
+		
+		If the cost per iteration is a function of the number of iterations, how do we know how many 
+		iterations to run (or what the "correct" cost is)?
+			We can arrive at a relatively reasonable estimation for this "correct" by running the program
+			against multiple iteration numbers and extract their respective costs per iteration. From there
+			we can estimate an optimum value.
+			
+	QUESTION 2.1.4 - costs of serialization:
+		Why do all of the options perform similarly for low numbers of threads?
+			At low thread counts, the probability of synchronization errors occuring in critical sections 
+			is dramatically lower. Few such errors means minimal overhead from threads having to wait for
+			locks and such.
+		
+		Why do the three protected operations slow down as the number of threads rises?
+			With more threads, the likelihood of threads having to be interrupted while waiting for locks
+			to become unlocked in the protected sections increases. As such, this contributes significantly
+			to the overall execution time of the process due to the increased overheads.
+			
+	QUESTION 2.2.1 - scalability of Mutex
+		Compare the variation in time per mutex-protected operation vs the number of threads in Part-1 (adds) 
+		and Part-2 (sorted lists).
+			In Part-1(adds), the time per mutex-protected operation increases with increasing thread count
+			up to 4 threads before it decreases with more threads added.
+			In Part-2(sorted lists) however, this time increases with increasing thread count consistently.
+		
+		Comment on the general shapes of the curves, and explain why they have this shape. Comment on the 
+		relative rates of increase and differences in the shapes of the curves, and offer an explanation
+		for these differences.
+			Part-1's curve is somewhat an inverted V, while Part-2's is a smoother curve with positive gradient.
+			Part-2's curve hence increases at a higher rate than Part-1's.
+			Reason is because Part-2's mutex-protection operation is far more complex than the simple operation 
+			of Part-1's. Hence, threads would have to wait longer for these sections to become free as the thread 
+			count increases. For Part-1, at higher thread counts the overhead from waiting at these sections becomes 
+			more diluted at since the wait time is already relatively short. 
+				
+	QUESTION 2.2.2 - scalability of spin locks
+		Compare the variation in time per protected operation vs the number of threads for list operations 
+		protected by Mutex vs Spin locks. Comment on the general shapes of the curves, and explain why they 
+		have this shape. Comment on the relative rates of increase and differences in the shapes of the curves, 
+		and offer an explanation for these differences.	
+			Curve for spin-lock protection is steeper. Both curves exhibit an increase in time per protected 
+			operation as thread count increases.
+			This difference in steepness is due to spin locks wasting larger amounts of CPU time spinning as
+			they wait for locks to become free as compared to mutex locks where the thread simply yields CPU
+			usage for another thread to run when it encounters a locked protected section.
+				
+				
+REFERENCES:
+	Pthread tutorial: https://computing.llnl.gov/tutorials/pthreads/

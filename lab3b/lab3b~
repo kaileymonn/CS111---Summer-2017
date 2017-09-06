@@ -1,0 +1,8 @@
+# NAME: Jeffrey Chan, Jiwan Kang
+# EMAIL: jeffschan97@gmail.com, jiwan226@gmail.com
+# ID: 004-611-638, 704-624-623
+
+#!/bin/sh
+
+python lab3b.py $@
+

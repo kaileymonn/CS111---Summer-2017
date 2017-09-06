@@ -1,0 +1,244 @@
+//NAME: Kai Wong
+//EMAIL: kaileymon@g.ucla.edu
+//ID: 704451679
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <termios.h>
+#include <unistd.h>
+#include <getopt.h>
+#include <pthread.h>
+#include <signal.h>
+#include <sys/wait.h>
+
+//Saved terminal mode
+struct termios tattr;
+
+//Read into this buffer
+char *charbuf;
+
+//Flag to determine if shell option is used
+int shellOption = 0;
+
+//Two pipes for both directions of communications, read/write ends
+int pipefd1[2];
+int pipefd2[2];
+
+//Parent process thread
+pthread_t tid;
+
+//Child process
+pid_t pid;
+
+//Resets terminal mode
+//Shutdown Processing
+void reset() {
+  tcsetattr(STDIN_FILENO, TCSANOW, &tattr);
+  
+  //Collect shell exit status after processing final output from shell and closing write pipe to shell
+  if(shellOption) {
+    int status = 0;
+    waitpid(pid, &status, 0);
+    if(WIFEXITED(status)) {
+      fprintf(stderr, "SHELL EXIT SIGNAL= %d\n", WEXITSTATUS(status));
+    }
+    else if(WIFSIGNALED(status)) {
+      fprintf(stderr, "SHELL EXIT SIGNAL= %d\n", WTERMSIG(status));
+    }
+    else {
+      printf("Shell exited with no problems");
+    }
+    
+  }
+}
+
+//Function to handle all reading and writing
+//2: Read from STDIN into buffer
+//3: Map <cr> or <lf> to <cr><lf>
+//4: Write to STDOUT
+//5: Upon receiving ctrl+D (EOF), restore terminal modes and exitctrl+C signal
+void readWrite(int rfd, int wfd, int process) {
+  int offset = 0;
+  ssize_t nbytes = read(rfd, charbuf, 1);
+  
+  //Failed to read buffer 
+  if(nbytes < 0) {
+    perror("Error: Buffer read failure ");
+    exit(1);
+  }
+
+  while(nbytes) {
+    //Track current char
+    char *current = charbuf + offset;
+    
+    //Map <cr> or <lf> to <cr><lf>
+    if((*(current) == '\r' || *(current) == '\n') && !shellOption) {
+      char b[2] = {'\r','\n'};
+      write(wfd, b, 2);
+
+      //Im another process
+      if(process) {
+	//printf("Imma other process");
+	write(pipefd1[1], b, 2);
+      }
+      offset++;
+      continue;
+    }
+
+    //Receive ctrl+D from terminal, exit and restore terminal
+    if(*(current) == 4) { 
+      //If shell, close pipe, send SIGHUP to shell, restore terminal, exit0
+      if(shellOption) { 
+	//TODO: Weird behavior from parent process
+	pthread_cancel(tid);
+	
+	close(pipefd1[0]);
+	close(pipefd1[1]);
+	close(pipefd2[0]);
+	close(pipefd2[1]);
+	
+	kill(pid,SIGHUP);
+	//reset();
+	exit(0);
+      }
+      exit(0);
+    }
+       
+    write(wfd, current, 1);
+
+    //Im another process
+    if(process) {
+      //printf("Imma other process 2");
+      write(pipefd1[1], current, 1); 
+    }
+
+    offset++;
+
+    nbytes = read(rfd, charbuf + offset, 1);
+
+    //Receive ctrl+D from shell, exit
+    if(!nbytes && !process) {
+      exit(1);
+    }
+  }
+}
+
+
+//Creates pipe (input argument)
+void openPipe(int p[2]) {
+  if(pipe(p) == -1) {
+    perror("Error: Failed to create pipe");
+    exit(1);
+  }
+}
+
+
+// /bin/bash, with no arguments other than its name. 
+//STDIN is pipe from terminal process, stdout & stderr are dups of pipe to terminal process
+void execShell() {
+  close(pipefd1[1]);
+  close(pipefd2[0]);
+  dup2(pipefd1[0], 0);
+  dup2(pipefd2[1], 1);
+  dup2(pipefd2[1], 2);
+  close(pipefd1[0]);
+  close(pipefd2[1]);
+  
+  if(execvp("/bin/bash", NULL) == -1) {
+    perror("Error: execShell() failure");
+    exit(1);
+  }
+}
+
+//Function to read input from shell pipe
+void *tfunc() {
+  close(pipefd1[0]);
+  close(pipefd2[1]);
+  readWrite(pipefd2[0], 1, 0);
+  exit(0);
+}
+
+//Handles SIGINT/SIGPIPE 
+void sighandler(int signum) {
+  //If SIGINT, send SIGINT to shell
+  if(shellOption && signum == SIGINT) {
+    kill(pid, SIGINT);
+  }
+  //If SIGPIPE, restore terminal and exit
+  if(signum == SIGPIPE) {
+    //reset();
+    exit(1);
+  }
+}
+
+int main(int argc, char **argv) {
+  
+  struct termios new_tattr;
+  //Do large read then process however many characters actually received
+  charbuf = (char*)malloc(128 * sizeof(char));
+  int opt = 0;
+  
+  static struct option long_options[] = {
+    {"shell", no_argument, 0, 's'}
+  };
+  
+  //Just like lab0, check options
+  while((opt = getopt_long(argc, argv, "s", long_options, NULL)) != -1) {
+    switch(opt)
+      {
+      case 's':
+	signal(SIGINT, sighandler);
+	signal(SIGPIPE, sighandler);
+	shellOption = 1;
+	break;
+      
+      //Deals with invalid options 
+      default:
+	perror("Error: Unrecognized option");
+	exit(1);	
+      }
+  }
+  
+  //Save current terminal mode
+  tcgetattr(STDIN_FILENO, &tattr);
+  //Reset modes before shutdown
+  atexit(reset); 
+  tcgetattr(STDIN_FILENO, &new_tattr);
+  //Set up new terminal mode for non-canonical, no echo
+  new_tattr.c_iflag |= ISTRIP; //TODO, WHY CANT ISTRIP WORK????
+  //new_tattr.c_oflag = 0; //no processing  
+  new_tattr.c_lflag &= ~(ICANON | ECHO);
+  //Counted read that is satisfied only when at least VMIN characters have been transferred to caller's buffer
+  new_tattr.c_cc[VMIN] = 1;
+  new_tattr.c_cc[VTIME] = 0;
+
+  //Check if new terminal mode has been set up properly
+  if(tcsetattr(STDIN_FILENO, TCSANOW, &new_tattr) < 0) {
+    perror("Error: non-canonical, no echo terminal mode initialization failure");
+    exit(1);
+  }
+
+  //Fork to create new process then exec a shell
+  openPipe(pipefd1);
+  openPipe(pipefd2);
+  if(shellOption) {
+    pid = fork();
+    //Failed to fork
+    if(pid == -1) {
+      perror("Error: Failed to fork");
+      exit(1);
+    }
+    //Child process, execshell
+    if(pid == 0) {
+      execShell();
+    }
+    //Parent process, create thread and run tfunc 
+    else {
+      pthread_create(&tid, NULL, tfunc, NULL);
+    }
+  }
+
+  readWrite(0,1,1);
+  exit(0);
+  
+}

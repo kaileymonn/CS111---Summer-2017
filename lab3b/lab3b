@@ -1,0 +1,8 @@
+#NAME: Kai Wong
+#EMAIL: kaileymon@g.ucla.edu
+#ID: 704451679
+
+#!/bin/sh
+
+python lab3b.py $@
+

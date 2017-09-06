@@ -1,0 +1,11 @@
+NAME: Kai Wong
+EMAIL: kaileymon@g.ucla.edu
+ID: 704451679
+
+Edison WIFI MAC - 192.168.0.146
+Edison serial number - FZEDA623D01YT3501
+
+Screenshot 1 - Screenshot from USB terminal command session, ifconfig 
+Screenshot 2 - Screenshot of successful scp use (pull HelloWorld.c to edison)
+Screenshot 3 - Screenshot of WIFI SSH session where HelloWorld.c is built and run
+Screenshot 4 - Screenshot of WIFI SSH session, install git and clone repo using opkg

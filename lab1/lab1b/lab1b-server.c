@@ -1,0 +1,329 @@
+//NAME: Kai Wong
+//EMAIL: kaileymon@g.ucla.edu
+//ID: 704451679
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <getopt.h>
+#include <pthread.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <mcrypt.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <string.h>
+#include <fcntl.h>
+
+
+
+
+//----------------------GLOBALS----------------------//
+
+//Initialize option flags to 0 (false)
+int encrypt_flag = 0;
+int log_flag = 0;
+
+//Character reads (constants)
+const char EOT = 0x4; // ctrl+D
+const char LF = 0xA; // '\n'
+const char CR = 0xD; // '\r'
+
+//Client/Server stuff
+int port_num = 0;
+int socket_fd = 0;
+int new_sockfd = 0;
+int pid; 
+socklen_t client_len;
+pthread_t tid;
+struct sockaddr_in serv_addr;
+struct sockaddr_in client_addr;
+struct hostent *server;
+
+//Encryption stuff
+MCRYPT td;
+char *key;
+char *IV;
+int keyfd;
+const int KEYSIZE = 16; //128 bits
+
+//Pipe stuff
+int pipe_out[2]; //Server to shell
+int pipe_in[2]; //Shell to server
+
+
+
+
+//---------------ADDITIONAL FUNCTIONS----------------//
+
+//Handles terminal reads and respective writes
+void readWrite();
+
+//Thread: Write socket output (server output) to stdout
+void *tfunc(void *message); 
+
+//Generate key for TWOFISH encryption algorithm in CFB mode
+void crypto();
+
+//Signal handler
+void sig_handler(int sig);
+
+//Executes shell process
+void execShell();
+
+//Executes server parent process
+void execServer();
+
+
+
+//-----------------MAIN ROUTINE---------------------//
+
+int main(int argc, char *argv[]) {
+  
+  int opt, status;
+      
+  static struct option long_options[] = {
+    {"port", required_argument, NULL, 'p'},
+    {"encrypt", no_argument, NULL, 'e'},
+  };
+  
+
+  //Parse through arguments
+  while((opt = getopt_long(argc, argv, "p:e", long_options, NULL)) != -1) {
+    switch(opt)
+      {
+      case 'p':
+	port_num = atoi(optarg);
+	break;
+      case 'e':
+	encrypt_flag = 1;
+	break;
+      default: 
+	perror("Error: Unrecognized argument");
+	exit(1);	
+      }
+  }
+  
+  //Initialize pipes 
+  if((pipe(pipe_out)) == -1 || (pipe(pipe_in)) == -1) {
+    perror("Error: Failed to create pipes");
+    exit(1);
+  }  
+
+
+  //Socket initialization for server
+  if((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    perror("Error: Could not open socket for server");
+    exit(1);
+  } 
+
+  //Server address initializations
+  //memset((char*) &serv_addr, 0, sizeof(serv_addr));
+  serv_addr.sin_family = AF_INET;
+  serv_addr.sin_port = htons(port_num);
+  serv_addr.sin_addr.s_addr = INADDR_ANY;
+  
+  //Bind socket
+  if((bind(socket_fd, (struct sockaddr *) &serv_addr, sizeof(serv_addr))) < 0) {
+    perror("Error: Failed to bind server socket");
+    exit(1);
+  }
+  printf("Successfully bound socket...\n");
+  
+  //Listen for client connection attempt
+  printf("Server is waiting for connection...\n");
+  listen(socket_fd, 5);
+  client_len = sizeof(client_addr);
+  new_sockfd = accept(socket_fd, (struct sockaddr *) &client_addr, &client_len);
+  if(new_sockfd < 0) {
+    perror("Error: Failed to accept client socket");
+    exit(1);
+  }
+
+  //Encryption enabled
+  if(encrypt_flag == 1) {crypto();}
+
+  //Fork to create new shell process
+  pid = fork();
+  if(pid == -1) {
+    perror("Error: Failed to create shell process(child)");
+    exit(1);
+  }
+
+  //Catch ^C from client, send SIGINT to shell process(child)
+  signal(SIGINT, sig_handler);
+
+
+  //Child process executes shell, server processes shell output and redirects to client
+  if(pid == 0) {execShell();}
+  else {execServer();}
+
+  //Wait for shell process to finish executing
+  waitpid(pid, &status, 0);
+
+  if(WIFSIGNALED(status)) {
+    fprintf(STDERR_FILENO, "Shell process killed (signal %d)\n", WTERMSIG(status));
+    exit(WEXITSTATUS(status));
+  }
+  
+  //Close mcrypt module if encryption was used
+  if(encrypt_flag == 1) {
+    mcrypt_generic_deinit(td);
+    mcrypt_module_close(td);
+  }
+
+  exit(0);
+}
+
+
+
+
+
+
+//------------------FUNCTION IMPLEMENTATIONS----------------------//
+
+void readWrite() {
+  char current;
+  
+  //Read client output, write to shell process
+  while(1) {
+    //EOF Check
+    if(read(STDIN_FILENO, &current, 1) <= 0) {
+      perror("Error: EOF or read error received from network connection");
+      close(new_sockfd);
+      kill(pid, SIGTERM);
+      exit(1);
+    }
+    
+    //Decryption
+    if(encrypt_flag == 1) {
+      if((mdecrypt_generic(td, &current, 1)) != 0) {
+	perror("Error: Failed to decrypt client output");
+	exit(1);
+      }
+    }
+      
+    //While writing to shell process through pipe
+    if(write(pipe_out[1], &current, 1) != 1) {
+      perror("Error: Failed to write to shell process");
+      exit(1);
+    }
+  }
+}
+
+void *tfunc(void *message) {
+  char current;
+  int readfd = *((int*)message); //Typecast message to an int
+
+  while(1) {
+    read(readfd, &current, 1);
+
+    //EOF signal received
+    if(current == 0) {signal(SIGPIPE, sig_handler);}
+
+    //Encryption
+    if(encrypt_flag == 1) {
+      if((mcrypt_generic(td, &current, 1)) != 0) {
+	perror("Error: Failed to encrypt server output");
+	exit(1);
+      }
+    }
+
+    //Write shell output to client
+    if((write(STDOUT_FILENO, &current, 1)) != 1) {
+      perror("Error: Failed to write shell output to client");
+      exit(1);
+    }    
+  }
+
+  return NULL;
+}
+
+void crypto() {
+  //Open module
+  if((td = mcrypt_module_open("twofish", NULL, "cfb", NULL)) == MCRYPT_FAILED) {
+    perror("Error: Failed to initialize mcrypt module");
+    exit(1);
+  }
+
+  //Read my.key file into *key buffer
+  keyfd = open("my.key", O_RDONLY);
+  key = calloc(1, KEYSIZE);
+  if((read(keyfd, key, KEYSIZE)) != KEYSIZE) {
+    perror("Error: Failed to read my.key file");
+    exit(1);
+  }
+  
+  //Close my.key file
+  close(keyfd);
+
+  //Generate key
+  IV = malloc(mcrypt_enc_get_iv_size(td));
+  
+  //Put random data into IV
+  int i;
+  for(i = 0; i < mcrypt_enc_get_iv_size(td); i++) {
+    IV[i]=rand();
+  } 
+
+  if((mcrypt_generic_init(td, key, KEYSIZE, IV)) < 0) {
+    perror("Error: Failed to generic_init()");
+    exit(1);
+  }
+}
+
+void sig_handler(int sig) {
+  if(sig == SIGPIPE) {
+    perror("Error: SIGPIPE received from shell");
+    close(new_sockfd);
+    kill(pid, SIGTERM);
+    exit(0);
+  }
+
+  //Process ^C from client before passing SIGINT to shell
+  if(sig == SIGINT) {
+    perror("Received SIGINT from client");
+    //Send SIGINT to shell process
+    kill(0, SIGINT);
+  }
+}
+
+void execShell() {
+  //I/O redirections
+  close(pipe_out[1]);
+  close(pipe_in[0]);
+  dup2(pipe_out[0], STDIN_FILENO);
+  dup2(pipe_in[1], STDOUT_FILENO);
+  dup2(pipe_in[1], STDERR_FILENO);
+  close(pipe_out[0]);
+  close(pipe_in[1]);
+  
+  char *arg[2];
+  arg[0] = "/bin/bash";
+  arg[1] = NULL;
+
+  //Launch shell
+  if((execvp(arg[0], arg)) == -1) {
+    perror("Error: Failed to execute shell");
+    exit(1);
+  }
+}
+
+void execServer() {
+  //Create thread to process shell output
+  pthread_create(&tid, NULL, &tfunc, &pipe_in[0]);
+
+  //I/O redirections
+  close(pipe_out[0]);
+  close(pipe_in[1]);
+  dup2(new_sockfd, STDIN_FILENO);
+  dup2(new_sockfd, STDOUT_FILENO);
+  dup2(new_sockfd, STDERR_FILENO);
+  close(new_sockfd);
+
+  //Receive client output, then write to shell
+  readWrite();
+}
