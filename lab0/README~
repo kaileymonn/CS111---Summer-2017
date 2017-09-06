@@ -1,0 +1,33 @@
+NAME: Kai Wong
+EMAIL: kaileymon@g.ucla.edu
+ID: 704451679
+
+INCLUDED FILES: 
+lab0.c - C source module as per specifications
+
+Makefile - Makefile as per specifications 
+	   Builds the lab0 executable
+	   Can run quick smoke-test on program functionality and report success/failure
+	       1. Checks if exit status is 0 (successful run of the program)
+	       2. Checks if contents of input and output files are identical (using cmp)
+	   
+	   Can delete all files created by Makefile
+	   Can build distribution tarball for submission
+
+backtrace.png - Screenshot showing backtrace of forced segmentation fault when deferencing null pointer
+
+breakpoint.png - Screenshot of confirmation of null pointer for forced segmentation fault. Breakpoint was set at line 101 of
+	         the C source code (from backtrace.png), which is the instruction to dereference the null pointer.
+		 Pointer address listed as 0x00 and 'memory cannot be accessed' error message when trying print memory contents 
+		 of the pointer. 
+
+REFERENCES:
+getopt_long info: https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Options.html#Getopt-Long-Options
+getopt_long example: https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Option-Example.html#Getopt-Long-Option-Example
+usage statement guide: http://courses.cms.caltech.edu/cs11/material/general/usage.html
+Makefile writing tutorial: http://mrbook.org/blog/tutorials/make/
+More Makefile guides: https://linoxide.com/how-tos/linux-make-command-examples/
+Bash script, check exit status codes: http://bencane.com/2014/09/02/understanding-exit-codes-and-how-to-use-them-in-bash-scripts/
+     	       	     	  	      https://stackoverflow.com/questions/16315089/how-to-get-exit-status-of-a-shell-command-used-in-gnu-makefile
+Bash script, check identical files: https://superuser.com/questions/921207/check-if-any-two-files-in-a-directory-are-identical
+ 

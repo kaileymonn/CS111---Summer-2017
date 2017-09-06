@@ -1,0 +1,126 @@
+//NAME: Kai Wong
+//EMAIL: kaileymon@g.ucla.edu
+//ID: 704451679
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <getopt.h>
+#include <unistd.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <errno.h>
+
+extern int errno;
+
+void sigHandler() {
+  fprintf(stderr, "Error: Segmentation fault caught by SIGSEGV handler.\n");
+  perror(NULL);
+  exit(4);
+}
+
+void invalidArg() {
+  fprintf(stderr, "Error: Unrecognized argument.\nCorrect Usage: lab0 -i inputFile -o outputFile.\n");
+  //printf( "Error Value is : %s\n", strerror(errno) );
+}
+
+
+int main(int argc, char** argv)
+{
+  //Initializations
+  char* input = NULL;
+  char* output = NULL; 
+  int segFault = 0;
+  int c;
+
+  //Arguments
+  static struct option long_options[] = 
+    {
+      {"input", required_argument, 0, 'i'},
+      {"output", required_argument, 0, 'o'},
+      {"segfault", no_argument, 0, 'f'},
+      {"catch", no_argument, 0, 'c'}
+    };
+  
+  //Parse through arguments, store results in variables
+  while(1) {
+    c = getopt_long(argc, argv, "fci:o:", long_options, NULL);
+    
+    //Detect end of options
+    if(c == -1)
+      break;
+    
+    switch(c) {
+    case 'i':
+      { 
+	//Input Redirection TODO
+	int ifd = open(optarg, O_RDONLY);
+	if(ifd >= 0) {
+	  close(0);
+	  dup(ifd);
+	  close(ifd);
+	}
+	else {
+	  fprintf(stderr, "Error: Unable to open specified input file.\n");
+	  perror(NULL);
+	  exit(2);
+	}
+	break;	
+      }
+    case 'o':
+      {
+	//Output Redirection TODO
+	int ofd = creat(optarg, 0666);
+	if(ofd >= 0) {
+	  close(1);
+	  dup(ofd);
+	  close(ofd);
+	}
+	else {
+	  fprintf(stderr, "Error: Unable to create specified output file.\n");
+	  perror(NULL);
+	  exit(3);
+	}
+	break;
+      }
+    case'f': 
+      {
+	segFault = 1;
+	break;
+      }
+    case 'c': 
+      {
+	//Register SIGSEGV handler that catches segmentation fault
+	signal(SIGSEGV, sigHandler);
+	break;
+      }
+    
+    //Unrecognized argument, print error message, correct usage line, exit(1)
+    default:
+      {
+      invalidArg();
+      exit(1);
+      }
+    }
+  }
+
+  //Force segmentation fault
+  if(segFault != 0)
+    {
+      char* fault = NULL;
+      *fault = 'f';
+    }
+  
+  //Copy stdin to stdout by read()-ing from fd0 & write()-ing to fd1
+  int status;
+  char current;
+  status = read(0, &current, sizeof(char));
+  
+  while(status > 0)
+    {
+      write(1, &current, sizeof(char));
+      status = read(0, &current, sizeof(char));
+    }
+  
+  //No errors until EOF, exit(0)
+  exit(0);
+}

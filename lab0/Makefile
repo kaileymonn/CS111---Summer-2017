@@ -1,0 +1,40 @@
+#NAME: Kai Wong
+#EMAIL: kaileymon@g.ucla.edu
+#ID: 704451679
+
+.SILENT: check
+
+default: 
+	gcc -o lab0 -g lab0.c
+
+check: 
+	#Check exit statuses = 0
+	echo "For some reason I don't remember ever learning how to write a Makefile in CS35L/CS33 so that's cool..." > file1.txt; \
+	./lab0 -i file1.txt -o file2.txt; \
+	if [[ $$? -eq 0 ]]; then \
+		echo "Success: Exit Status = 0."; \
+	elif [[ $$? -eq 1 ]]; then \
+		echo "Failure: Exit Status = 1. Unrecognized argument."; \
+	elif [[ $$? -eq 2 ]]; then \
+		echo "Failure: Exit Status = 2. Can't open input file."; \
+	elif [[ $$? -eq 3 ]]; then \
+		echo "Failure: Exit Status = 3. Can't create output file."; \
+	elif [[ $$? -eq 4 ]]; then \
+		echo "Failure: Exit Status = 4. Caught segmentation fault."; \
+	else \
+		echo "Failure: Undefined exit status."; \
+	fi; \
+
+	#Check if contents of files match
+	cmp file1.txt file2.txt
+	if [[ $$? -eq 0 ]]; then \
+		echo "Success: Input and Output file contents match."; \
+	else \
+		echo "Failure: Input and Output file contents do not match."; \
+	fi; \
+
+clean:
+	rm -f lab0 *.o *.txt *.tar.gz
+
+dist:
+	tar -czvf lab0-704451679.tar.gz lab0.c Makefile backtrace.png breakpoint.png README
