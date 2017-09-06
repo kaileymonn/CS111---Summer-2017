@@ -1,27 +1,29 @@
-//NAME: Kai Wong
-//EMAIL: kaileymon@g.ucla.edu
+//NAME: Kai Wong 
+//EMAIL: kaileymon@g.ucla.edu 
 //ID: 704451679
 
 #include<stdio.h>
 #include<stdlib.h>
 #include<unistd.h>
 #include<getopt.h>
-#include<mraa.h>
-#include<mraa/aio.h>
 #include<string.h>
+#include<fcntl.h>
+#include<poll.h>
 #include<time.h>
 #include<math.h>
 #include<ctype.h>
+#include<mraa.h>
+#include<mraa/aio.h>
 #include<sys/types.h>
-#include<sys/time.h>
 #include<sys/stat.h>
+#include<sys/time.h>
 #include<sys/socket.h>
-#include<fcntl.h>
-#include<poll.h>
 #include<netdb.h>
 #include<netinet/in.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
-//------------------ GLOBAL VARIABLES--------------------//
+//-------------------GLOBAL VARIABLES--------------------//
 //Command-line variables
 FILE *log_file = NULL;
 int port;
@@ -46,6 +48,11 @@ struct sockaddr_in serverIP;
 struct hostent *server;
 int socket_fd;
 char *host = "";
+
+//SSL variables
+SSL_CTX* ctx;
+SSL* ssl;
+const SSL_METHOD* method;
 
 
 //-----------------ADDITIONAL FUNCTIONS------------------//
@@ -83,6 +90,17 @@ int main(int argc, char **argv) {
   
   //Store port number (non-switch parameter, last argument passed)
   port = atoi(argv[argc - 1]);
+
+  //Setup SSL structures
+  OpenSSL_add_all_algorithms();
+  SSL_load_error_strings();
+  SSL_library_init();
+  method = SSLv23_client_method();
+  if((ctx = SSL_CTX_new(method)) == NULL) {
+    perror("ERROR: Failed to create new SSL_CTX object");
+    exit(2);
+  }
+  ssl = SSL_new(ctx);
   
   //Setup client-side socket
   socket_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -104,10 +122,20 @@ int main(int argc, char **argv) {
     perror("ERROR: Failed to connect to server");
     exit(2);
   }
-  
+
+  //Establish SSL connection
+  SSL_set_fd(ssl, socket_fd);
+  if(SSL_connect(ssl) != 1) {
+    perror("ERROR: TLS/SSL handshake was not successful");
+    exit(2);
+  }
+
   //Immediately send and log an ID terminated with a newline
-  dprintf(socket_fd, "ID=%s\n", id);
-    
+  char id_print[50];
+  memset(id_print, 0, 50);
+  sprintf(id_print, "ID=%s\n", id);
+  SSL_write(ssl, id_print, strlen(id_print));
+
   //Initialize temperature sensor(A0) and button(D3)
   temp_sensor = mraa_aio_init(0);
   button = mraa_gpio_init(3);
@@ -128,8 +156,11 @@ int main(int argc, char **argv) {
     timeInfo = localtime(&timer);
     strftime(time_print, 10, "%H:%M:%S", timeInfo);
     
-    //Write data to server over socket and update log file 
-    dprintf(socket_fd, "%s %.1f\n", time_print, temperature);
+    //Write data to server over SSL connection and update log file
+    char temp_buffer[20];
+    memset(temp_buffer, 0, 20);
+    sprintf(temp_buffer, "%s %.1f\n", time_print, temperature);
+    SSL_write(ssl, temp_buffer, strlen(temp_buffer));
     if(log_file) {fprintf(log_file, "%s %.1f\n", time_print, temperature);}
     fflush(log_file);
 
@@ -147,8 +178,10 @@ int main(int argc, char **argv) {
 	timeInfo = localtime(&local_time);
 	strftime(time_print, 10, "%H:%M:%S", timeInfo);
 
-	//Write local time to server and log file
-	dprintf(socket_fd, "%s SHUTDOWN\n", time_print);
+	//Write local time to server and log file over SSL connection
+	char off_buffer[50];
+	sprintf(off_buffer, "%s SHUTDOWN\n", time_print);
+	SSL_write(ssl, off_buffer, strlen(off_buffer));
 	if(log_file) {fprintf(log_file, "%s SHUTDOWN\n", time_print);}
 	exit(0);
       }
@@ -162,22 +195,13 @@ int main(int argc, char **argv) {
       
       //Process command inputs
       if((pollfdArray[0].revents & POLLIN)) {
-	char commands_buffer[1024], c;
-	int buffer_offset = 0;
-		
-	while(1) {
-	  if(read(socket_fd, &c, 1) > 0) {
-	    //Received nextline from server, split parameter in commands buffer
-	    if(c == '\n') {
-	      commands_buffer[buffer_offset] = '\0';
-	      buffer_offset = 0;
-	      break;
-	    }
-	    //Otherwise just add input to buffer 
-	    commands_buffer[buffer_offset] = c;
-	    buffer_offset++;
-	  }
-	}
+	//Read from server over SSL connection
+	char commands_buffer[1024];
+	memset(commands_buffer, 0, 1024);
+	SSL_read(ssl, commands_buffer, 1024);
+	commands_buffer[strlen(commands_buffer) - 1] = '\0';
+
+	//Do command processing 
 	command_handler(commands_buffer);
       }
       //Update current time
@@ -211,7 +235,9 @@ void command_handler(const char* command) {
     strftime(time_print, 10, "%H:%M:%S", timeInfo);
     
     //Write local time to server and log file
-    dprintf(socket_fd, "%s SHUTDOWN\n", time_print);
+    char off_buffer[50];
+    sprintf(off_buffer, "%s SHUTDOWN\n", time_print);
+    SSL_write(ssl, off_buffer, strlen(off_buffer));
     if(log_file) {fprintf(log_file, "%s SHUTDOWN\n", time_print);}
     exit(0);
   }  
