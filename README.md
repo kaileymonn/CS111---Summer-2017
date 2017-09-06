@@ -1,7 +1,7 @@
 # CS111-Summer-2017
 Operating Systems by Peter Reiher
 
-lab0: Parse and handle command-line arguments for C program in Linux development environment
+lab0: Parse and handle command-line arguments for C program in Linux development environment\n
 lab1A: Terminal I/O and Inter-Process Communication
 lab1B: Encrypted Network Communication
 lab2A: Races and Synchronization
